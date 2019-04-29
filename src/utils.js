@@ -1,3 +1,5 @@
+import moment from 'moment';
+
 import { TIMES_ON_AXIS, SCROLL_DIRECTIONS, SCROLL_SENSITIVITY } from './constants';
 
 export const getReadableDateTime = dateTimeString => {
@@ -30,3 +32,8 @@ export const detectScroll = (e, scrollPosition) => {
         return SCROLL_DIRECTIONS.LEFT;
     } else return false;
 }
+
+export const formattedMomentNow = () => {
+    return moment().toISOString().slice(0, -8) + 'Z';
+  }
+  

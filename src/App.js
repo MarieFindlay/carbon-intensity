@@ -2,9 +2,10 @@ import React from "react";
 import moment from 'moment';
 import { fetchPast24Hrs, fetchNext48Hrs, getPostcodeFromCoords, fetchPast24HrsByPostcode, fetchNext48HrsByPostcode } from './api';
 import { TIMES_ON_AXIS, SCROLL_DIRECTIONS, SCROLL_SPEED } from './constants';
-import { getDefaultDataInView, getGraphReadyData, detectScroll } from './utils';
+import { getDefaultDataInView, getGraphReadyData, detectScroll, formattedMomentNow } from './utils';
 
 import { IntensityGraph } from './Graph';
+import { LocationInputs } from './LocationInputs';
 
 class App extends React.Component {
   constructor(props) {
@@ -19,13 +20,12 @@ class App extends React.Component {
       startScrollPosition: null,
       postcodeArea: null,
       showLocationError: false,
-      locationLoading: false,
     };
   }
 
   async componentDidMount () {
     try{
-      const timeAtMount = moment().toISOString().slice(0, -8) + 'Z';
+      const timeAtMount = formattedMomentNow();
       await this.setState({ baseTime: timeAtMount });
       const past24Hrs = await fetchPast24Hrs(this.state.baseTime);
       const next48Hrs = await fetchNext48Hrs(this.state.baseTime);
@@ -41,14 +41,11 @@ class App extends React.Component {
     if (this.state.postcodeArea !== prevState.postcodeArea) {
       this.setState({ loading: true});
       try {
-        const timeAtUpdate = moment().toISOString().slice(0, -8) + 'Z';
+        const timeAtUpdate = formattedMomentNow();
         await this.setState({ baseTime: timeAtUpdate });
         const past24Hrs = await fetchPast24HrsByPostcode(this.state.baseTime, this.state.postcodeArea);
-        console.log(past24Hrs);
         const next48Hrs = await fetchNext48HrsByPostcode(this.state.baseTime, this.state.postcodeArea);
-        console.log(next48Hrs);
         const data = [...past24Hrs, ...next48Hrs];
-        console.log(data);
         const dataInView = getDefaultDataInView(data);
         this.setState({data, dataInView, loading: false});
       } catch(error) {
@@ -110,36 +107,33 @@ class App extends React.Component {
     }
   }
 
-  async getLocation () {
-    this.setState({ locationLoading: true});
+  handleGetLocation = async () => {
     await navigator.geolocation.getCurrentPosition((position) => this.fetchCoordsSuccess(position), () => this.fetchCoordsError());
-    this.setState({ locationLoading: false});
   }
 
   render() {
     const { loadingError, loading, data, dataInView, locationLoading, showLocationError, postcodeArea } = this.state;
     const graphReadyData = getGraphReadyData(dataInView);
-    const geolocationAvailable = "geolocation" in navigator ? true : false;
-    if (loadingError) {
-      return <div>Error: {loadingError.message}</div>;
-    } else if (loading) {
-      return <div>Loading...</div>;
-    } else {
-      return (
-        <div className="topContainer">
-          <div className="useLocation" onClick={() => this.getLocation()}>Use my postcode</div>
-          {locationLoading && <div className="locationLoadingInfo">Location loading...</div>}
-          {showLocationError && <div className="locationLoadingInfo">Sorry, we couldn't find your location.</div>}
-          {postcodeArea && <div>{postcodeArea}</div>}
-          <div className='graphContainer' style={{height: '700px' }}
+    return (
+      <div className='topContainer'>
+        <LocationInputs 
+          showLocationError={showLocationError}
+          postcodeArea={postcodeArea}
+          onClickGetLocation={this.handleGetLocation}
+        />
+        <div className='mainContentContainer'>
+          {loadingError && <div>Error: {loadingError.message}</div>}
+          {loading && <div>Loading...</div>}
+          {!loadingError && !loading && (
+            <div className='graphContainer' style={{height: '700px' }}
             onMouseDown={(e) => this.handleStartScroll(e)}
             onMouseUp={(e) => this.handleEndScroll(e)}
             onMouseMove={(e) => this.handleScroll(e)}>
-            <IntensityGraph data={graphReadyData}/>
-          </div>
-        </div>
-      );
-    }
+              <IntensityGraph data={graphReadyData}/>
+            </div>
+          )}
+        </div> 
+      </div>);
   }
 }
 
